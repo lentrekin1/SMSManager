@@ -1,11 +1,5 @@
-#Finlandiscool1
-
 import os
 from twilio.rest import Client
-'''
-print(os.system("SETX {0} {1} /M".format('TWILIO_ACCOUNT_SID', '')))
-print(os.system("SETX {0} {1} /M".format('TWILIO_AUTH_TOKEN', '')))
-'''
 
 service_id = 'MG000de850aea5307bc69214ccf110f7e3'
 test_num = '4804179666'
