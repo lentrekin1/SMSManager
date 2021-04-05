@@ -20,10 +20,46 @@
         $(function() {
           $('.selectpicker').selectpicker();
         });
+
+
+        $(document).ready(function(){
+          $("#groupSearch").on("keypress click input", function () {
+              var val = $(this).val();
+              if(val.length) {
+                  $(".accordion .card.group-body").hide().filter(function () {
+                      return $('.group-head', this).text().toLowerCase().indexOf(val.toLowerCase()) > -1;
+                  }).show();
+              }
+              else {
+                  $(".accordion .card.group-body").show();
+              }
+          });
+        });
+
+        function submitGroup() {
+            document.getElementById('groupForm').submit();
+        }
+
+        function submitPerson() {
+            document.getElementById('personForm').submit();
+        }
     </script>
 </head>
 
 <body>
+<div class="container" style="min-height:100% width:80%">
+	{% with messages = get_flashed_messages() %}
+	  {% if messages %}
+	    {% for message in messages %}
+		  <div class="alert alert-warning alert-dismissible" role="alert">
+		  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span></button>
+			{{message}}
+		  </div>
+		{% endfor %}
+	  {% endif %}
+	{% endwith %}
+</div>
+
 <div style="text-align: center;">
     <h1>{{ title }} <button class="btn btn-warning" onclick="location.href='/settings'">Settings</button></h1>
 </div>
@@ -35,49 +71,51 @@
             </h5>
             <div class="card-body">
                 <div class="col" style="max-height: 75vh;overflow-y: auto;">
-                    {% for i in range(30) %}
-                    <div class="accordion" id="a01011970{{i}}">
+                    {% if dates is defined and dates is not none and dates|length > 0 %}
+                    {% for date in dates %}
+                    <div class="accordion" id="date-{{dates[date].id}}">
                         <div class="card">
-                            <div class="card-header" id="a01011970{{i}}-heading">
+                            <div class="card-header" id="date-{{dates[date].id}}-heading">
                                 <h2 class="mb-0">
-                                    <button aria-controls="a01011970{{i}}-collapse" aria-expanded="true"
+                                    <button aria-controls="date-{{dates[date].id}}-body" aria-expanded="true"
                                             class="btn btn-link btn-block text-left"
-                                            data-target="#a01011970{{i}}-collapse" data-toggle="collapse"
+                                            data-target="#date-{{dates[date].id}}-body" data-toggle="collapse"
                                             type="button">
-                                        January {{i}}, 1970
+                                        {{dates[date].date}} {{dates[date].events|length}} event(s)
                                     </button>
                                 </h2>
                             </div>
-                            <div aria-labelledby="a01011970{{i}}-heading" class="collapse"
-                                 data-bs-parent="#a01011970{{i}}" id="a01011970{{i}}-collapse">
+                            <div aria-labelledby="date-{{dates[date].id}}-heading" class="collapse"
+                                 data-bs-parent="#date-{{dates[date].id}}" id="date-{{dates[date].id}}-body">
                                 <div class="card-body">
-                                    <div class="accordion" id="a01011970{{i}}-events">
+                                    <div class="accordion" id="date-{{dates[date].id}}-events">
+                                        {% for event in dates[date].events %}
                                         <div class="card">
-                                            <div class="card-header" id="events-1">
+                                            <div class="card-header" id="{{event.id}}">
                                                 <h2 class="mb-0">
-                                                    <button aria-controls="events-1-body" aria-expanded="true"
+                                                    <button aria-controls="{{event.id}}-body" aria-expanded="true"
                                                             class="btn btn-link btn-block text-left"
-                                                            data-target="#events-1-body" data-toggle="collapse"
+                                                            data-target="#{{event.id}}-body" data-toggle="collapse"
                                                             type="button">
-                                                        RC Planes
+                                                        {{event.title}}
                                                     </button>
                                                 </h2>
                                             </div>
-                                            <div aria-labelledby="events-1" class="collapse"
-                                                 data-parent="#a01011970{{i}}-events" id="events-1-body">
+                                            <div aria-labelledby="{{event.id}}" class="collapse"
+                                                 data-parent="#date-{{dates[date].id}}-events" id="{{event.id}}-body">
                                                 <div class="card-body">
-                                                    <strong>Where: </strong><strong>Cactus Park</strong>
+                                                    <strong>When: </strong><strong>{{event.start}} to {{event.end}} AZ time</strong>
                                                     <hr>
-                                                    <strong>When: </strong><strong>6 PM to 7:30 PM</strong>
+                                                    <strong>Where: </strong><strong>{{event.location}}</strong>
                                                     <hr>
-                                                    <strong>Who: </strong><strong>Priests, Teachers, Deacons</strong>
+                                                    <strong>Invitees: </strong><strong>{{event.who}}</strong>
                                                     <hr>
-                                                    <strong>What: </strong><strong>Flying RC planes at cactus
-                                                    park</strong>
-                                                    <strong>How far out to notify: </strong><strong>5 days, 3 days, 1 days</strong>
+                                                    <strong>Notification Times: </strong><strong>{{event.notifyTimes}}</strong>
+                                                    <hr>
                                                 </div>
                                             </div>
                                         </div>
+                                        {% endfor %}
                                     </div>
 
                                 </div>
@@ -86,6 +124,9 @@
                     </div>
                     <br>
                     {% endfor %}
+                    {% else %}
+                    <strong>No events found</strong>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -94,25 +135,28 @@
         <div class="card" id="userGroups">
             <h5 class="card-header">
                 People and groups
+                <br>
+                <input type="text" id="groupSearch" class="form-control" placeholder="Search for a person or group here">
             </h5>
             <div class="card-body">
                 <div class="col" style="max-height: 66vh;overflow-y: auto;">
-                    {% for f in ['all_people', 'young_men', 'young_women', 'priests', 'teachers', 'deacons'] %}
-                    <div class="accordion" id="{{f}}">
-                        <div class="card">
-                            <h2 class="card-header" id="{{f}}-heading">
-                                <button aria-controls="{{f}}-collapse" aria-expanded="true"
-                                        class="btn btn-link btn-block text-left"
-                                        data-target="#{{f}}-collapse" data-toggle="collapse"
+                    {% if groups is defined and groups is not none and groups|length > 0 %}
+                    {% for group in groups %}
+                    <div class="accordion" id="{{group.replace(' ', '_')}}">
+                        <div class="card group-body">
+                            <h2 class="card-header" id="{{group.replace(' ', '_')}}-heading">
+                                <button aria-controls="{{group.replace(' ', '_')}}-body" aria-expanded="true"
+                                        class="btn btn-link btn-block text-left group-head"
+                                        data-target="#{{group.replace(' ', '_')}}-body" data-toggle="collapse"
                                         type="button">
-                                    {{f.replace('_', ' ')}}
+                                    {{group}}
                                 </button>
                             </h2>
-                            <div aria-labelledby="{{f}}-heading" class="collapse"
-                                 data-parent="#{{f}}" id="{{f}}-collapse">
+                            <div aria-labelledby="{{group.replace(' ', '_')}}-heading" class="collapse"
+                                 data-parent="#{{group.replace(' ', '_')}}" id="{{group.replace(' ', '_')}}-body">
                                 <div class="accordion-body">
-                                    {% for p in ['lance', 'will', 'max', 'travis'] %}
-                                    <strong>{{p}}: </strong><strong>4805556969</strong>
+                                    {% for member in groups[group] %}
+                                    <strong>{{member.name}}: </strong><strong>{{member.phone}}</strong>
                                     <br>
                                     {% endfor %}
                                 </div>
@@ -121,6 +165,9 @@
                     </div>
                     <br>
                     {% endfor %}
+                    {% else %}
+                    <strong>No people found</strong>
+                    {% endif %}
                 </div>
             </div>
             <div class="card-footer">
@@ -135,7 +182,9 @@
                         </button>
                       </div>
                       <div class="modal-body">
-                        <form>
+                        <form method="post" id="personForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" value="addPerson" name="formType">
                             <label for="name">Name</label>
                             <input type="text" class="form-control" name="name" id="name">
                             <br>
@@ -145,7 +194,7 @@
                       </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-primary">Add Person</button>
+                        <button type="button" onclick="submitPerson()" class="btn btn-primary">Add Person</button>
                       </div>
                     </div>
                   </div>
@@ -161,23 +210,27 @@
                         </button>
                       </div>
                       <div class="modal-body">
-                        <form>
+                        <form method="post" id="groupForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" value="createGroup" name="formType">
                             <label for="groupName">Group Name</label>
                             <input type="text" class="form-control" name="groupName" id="groupName">
                             <br>
+                            <label for="groupMembers">Group Members</label>
+                            {% if groups is defined and groups is not none and groups|length > 0 %}
                             <select class="selectpicker form-control" data-live-search-normalize="true" data-live-search="true" id="groupMembers" multiple name="groupMembers">
-                                {% for f in ['all_people', 'young_men', 'young_women', 'priests', 'teachers', 'deacons'] %}
-                                <option data-tokens={{f}}>{{ f.replace('_', ' ') }}</option>
-                                {% endfor %}
-                                {% for p in ['lance', 'will', 'max', 'travis'] %}
-                                <option data-tokens={{p}}>{{ p.replace('_', ' ') }}</option>
+                                {% for group in groups %}
+                                <option data-tokens={{group}}>{{ group }}</option>
                                 {% endfor %}
                             </select>
+                            {% else %}
+                            <strong>No people found</strong>
+                            {% endif %}
                         </form>
                       </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-primary">Create Group</button>
+                        <button type="button" onclick="submitGroup()" class="btn btn-primary">Create Group</button>
                       </div>
                     </div>
                   </div>
@@ -191,44 +244,47 @@
                 Add a new event
             </h5>
             <div class="card-body">
-                <form>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" value="addEvent" name="formType">
                     <label for="eventName">Event name</label>
                     <input class="form-control form-control-sm" id="eventName" name="eventName" placeholder="Ex. Guest speaker"
                            type="text">
-                    <label for="eventDesc">Event Description</label>
+                    <!--<label for="eventDesc">Event Description</label>
                     <input class="form-control form-control-sm" id="eventDesc" name="eventDesc" placeholder="Ex. Brother Johnson will speak about taxes"
-                           type="text">
+                           type="text">-->
                     <label for="eventDate">Date</label>
                     <input class="form-control form-control-sm" id="eventDate" name="eventDate" type="date">
                     <label for="eventStartTime">Start Time</label>
                     <input class="form-control form-control-sm" id="eventStartTime" name="eventStartTime" placeholder="Ex. 7 PM"
-                           type="text">
+                           type="time">
                     <label for="eventEndTime">End Time</label>
                     <input class="form-control form-control-sm" id="eventEndTime" name="eventEndTime" placeholder="Ex. 8:30 PM"
-                           type="text">
+                           type="time">
                     <label for="eventLocation">Location</label>
                     <input class="form-control form-control-sm" id="eventLocation" name="eventLocation" placeholder="Ex. the stakecenter"
                            type="text">
                     <label for="eventInvites">Who</label>
                     <br>
+                    {% if groups is defined and groups is not none and groups|length > 0 %}
                     <select class="selectpicker" data-live-search="true" id="eventInvites" multiple name="eventInvites">
-                        {% for f in ['all_people', 'young_men', 'young_women', 'priests', 'teachers', 'deacons'] %}
-                        <option data-tokens={{f}}>{{ f.replace('_', ' ') }}</option>
-                        {% endfor %}
-                        {% for p in ['lance', 'will', 'max', 'travis'] %}
-                        <option data-tokens={{p}}>{{ p.replace('_', ' ') }}</option>
+                        {% for group in groups %}
+                        <option data-tokens={{group}}>{{ group }}</option>
                         {% endfor %}
                     </select>
                     <br>
+                    {% else %}
+                    <strong>No people found</strong>
+                    {% endif %}
                     <small class="text-muted form-text">Select groups or people that are invited</small>
                     <label for="notifyTimes">How many days out to notify</label>
                     <select class="selectpicker" id="notifyTimes" multiple name="notifyTimes">
-                        {% for f in range(10) %}
-                        <option data-tokens={{f}}>{{ f }} days</option>
+                        {% for time in notifyTimes %}
+                        <option data-tokens={{time}}>{{ time }}</option>
                         {% endfor %}
                     </select>
                     <br>
-                    <small class="text-muted form-text">Select groups or people that are invited</small>
+                    <small class="text-muted form-text">Can select multiple, 0 = morning of event</small>
                     <button class="btn btn-success" type="submit">Add Event</button>
                 </form>
             </div>
