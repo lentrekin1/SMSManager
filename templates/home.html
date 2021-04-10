@@ -73,42 +73,42 @@
                 <div class="col" style="max-height: 75vh;overflow-y: auto;">
                     {% if dates is defined and dates is not none and dates|length > 0 %}
                     {% for date in dates %}
-                    <div class="accordion" id="date-{{dates[date].id}}">
+                    <div class="accordion" id="date-{{date}}">
                         <div class="card">
-                            <div class="card-header" id="date-{{dates[date].id}}-heading">
+                            <div class="card-header" id="date-{{date}}-heading">
                                 <h2 class="mb-0">
-                                    <button aria-controls="date-{{dates[date].id}}-body" aria-expanded="true"
+                                    <button aria-controls="date-{{date}}-body" aria-expanded="true"
                                             class="btn btn-link btn-block text-left"
-                                            data-target="#date-{{dates[date].id}}-body" data-toggle="collapse"
+                                            data-target="#date-{{date}}-body" data-toggle="collapse"
                                             type="button">
-                                        {{dates[date].date}} {{dates[date].events|length}} event(s)
+                                        {{date}} {{dates[date]|length}} event(s)
                                     </button>
                                 </h2>
                             </div>
-                            <div aria-labelledby="date-{{dates[date].id}}-heading" class="collapse"
-                                 data-bs-parent="#date-{{dates[date].id}}" id="date-{{dates[date].id}}-body">
+                            <div aria-labelledby="date-{{date}}-heading" class="collapse"
+                                 data-bs-parent="#date-{{date}}" id="date-{{date}}-body">
                                 <div class="card-body">
-                                    <div class="accordion" id="date-{{dates[date].id}}-events">
-                                        {% for event in dates[date].events %}
+                                    <div class="accordion" id="date-{{date}}-events">
+                                        {% for event in dates[date] %}
                                         <div class="card">
-                                            <div class="card-header" id="{{event.id}}">
+                                            <div class="card-header" id="event-{{event.id}}">
                                                 <h2 class="mb-0">
-                                                    <button aria-controls="{{event.id}}-body" aria-expanded="true"
+                                                    <button aria-controls="event-{{event.id}}-body" aria-expanded="true"
                                                             class="btn btn-link btn-block text-left"
-                                                            data-target="#{{event.id}}-body" data-toggle="collapse"
+                                                            data-target="#event-{{event.id}}-body" data-toggle="collapse"
                                                             type="button">
-                                                        {{event.title}}
+                                                        {{event.name}}
                                                     </button>
                                                 </h2>
                                             </div>
-                                            <div aria-labelledby="{{event.id}}" class="collapse"
-                                                 data-parent="#date-{{dates[date].id}}-events" id="{{event.id}}-body">
+                                            <div aria-labelledby="event-{{event.id}}" class="collapse"
+                                                 data-parent="#date-{{date}}-events" id="event-{{event.id}}-body">
                                                 <div class="card-body">
                                                     <strong>When: </strong><strong>{{event.start}} to {{event.end}} AZ time</strong>
                                                     <hr>
                                                     <strong>Where: </strong><strong>{{event.location}}</strong>
                                                     <hr>
-                                                    <strong>Invitees: </strong><strong>{{event.who}}</strong>
+                                                    <strong>Invitees: </strong><strong>{{event.invited}}</strong>
                                                     <hr>
                                                     <strong>Notification Times: </strong><strong>{{event.notifyTimes}}</strong>
                                                     <hr>
@@ -186,10 +186,21 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" value="addPerson" name="formType">
                             <label for="name">Name</label>
-                            <input type="text" class="form-control" name="name" id="name">
+                            <input type="text" class="form-control" name="personName" id="personName">
                             <br>
-                            <label for="number">Phone number</label>
-                            <input type="text" class="form-control" name="number" id="number">
+                            <label for="phone">Phone number</label>
+                            <input type="text" class="form-control" name="phone" id="phone">
+                            <br>
+                            <label for="groups">Add to groups:</label>
+                            {% if groupsList is defined and groupsList is not none and groupsList|length > 0 %}
+                            <select class="selectpicker form-control" data-live-search-normalize="true" data-live-search="true" id="groups" multiple name="groups">
+                                {% for group in groupsList %}
+                                <option data-tokens={{group}}>{{ group }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <strong>No people found</strong>
+                            {% endif %}
                         </form>
                       </div>
                       <div class="modal-footer">
@@ -213,12 +224,12 @@
                         <form method="post" id="groupForm">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" value="createGroup" name="formType">
-                            <label for="groupName">Group Name</label>
-                            <input type="text" class="form-control" name="groupName" id="groupName">
+                            <label for="name">Group Name</label>
+                            <input type="text" class="form-control" name="name" id="name">
                             <br>
-                            <label for="groupMembers">Group Members</label>
+                            <label for="members">Group Members</label>
                             {% if groups is defined and groups is not none and groups|length > 0 %}
-                            <select class="selectpicker form-control" data-live-search-normalize="true" data-live-search="true" id="groupMembers" multiple name="groupMembers">
+                            <select class="selectpicker form-control" data-live-search-normalize="true" data-live-search="true" id="members" multiple name="members">
                                 {% for group in groups %}
                                 <option data-tokens={{group}}>{{ group }}</option>
                                 {% endfor %}
@@ -247,27 +258,27 @@
                 <form method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" value="addEvent" name="formType">
-                    <label for="eventName">Event name</label>
-                    <input class="form-control form-control-sm" id="eventName" name="eventName" placeholder="Ex. Guest speaker"
+                    <label for="name">Event name</label>
+                    <input class="form-control form-control-sm" id="name" name="name" placeholder="Ex. Guest speaker"
                            type="text">
                     <!--<label for="eventDesc">Event Description</label>
                     <input class="form-control form-control-sm" id="eventDesc" name="eventDesc" placeholder="Ex. Brother Johnson will speak about taxes"
                            type="text">-->
-                    <label for="eventDate">Date</label>
-                    <input class="form-control form-control-sm" id="eventDate" name="eventDate" type="date">
-                    <label for="eventStartTime">Start Time</label>
-                    <input class="form-control form-control-sm" id="eventStartTime" name="eventStartTime" placeholder="Ex. 7 PM"
+                    <label for="date">Date</label>
+                    <input class="form-control form-control-sm" id="date" name="date" type="date">
+                    <label for="start">Start Time</label>
+                    <input class="form-control form-control-sm" id="start" name="start" placeholder="Ex. 7 PM"
                            type="time">
-                    <label for="eventEndTime">End Time</label>
-                    <input class="form-control form-control-sm" id="eventEndTime" name="eventEndTime" placeholder="Ex. 8:30 PM"
+                    <label for="end">End Time</label>
+                    <input class="form-control form-control-sm" id="end" name="end" placeholder="Ex. 8:30 PM"
                            type="time">
-                    <label for="eventLocation">Location</label>
-                    <input class="form-control form-control-sm" id="eventLocation" name="eventLocation" placeholder="Ex. the stakecenter"
+                    <label for="location">Location</label>
+                    <input class="form-control form-control-sm" id="location" name="location" placeholder="Ex. the stakecenter"
                            type="text">
-                    <label for="eventInvites">Who</label>
+                    <label for="invited">Who</label>
                     <br>
                     {% if groups is defined and groups is not none and groups|length > 0 %}
-                    <select class="selectpicker" data-live-search="true" id="eventInvites" multiple name="eventInvites">
+                    <select class="selectpicker" data-live-search="true" id="invited" multiple name="invited">
                         {% for group in groups %}
                         <option data-tokens={{group}}>{{ group }}</option>
                         {% endfor %}

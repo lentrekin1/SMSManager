@@ -20,9 +20,9 @@ from botocore.exceptions import ClientError
 if not os.path.isdir('logs'):
     os.mkdir('logs')
 
-log_file = 'logs/{:%Y_%m_%d_%H}.log'.format(datetime.now())
+log_file = 'logs/website-{:%Y_%m_%d_%H}.log'.format(datetime.now())
 log_format = u'%(asctime)s | %(levelname)-8s | %(message)s'
-logger = logging.getLogger('PV Ward YM SMS Scheduler')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(log_file, encoding='utf-8')
 formatter = logging.Formatter(log_format)
@@ -47,7 +47,11 @@ people_file = data_dir + 'people.json'
 bucket = 'pv-ward-sms-manager'
 key = os.environ.get('AWS_ACCESS_KEY_ID')
 secret = os.environ.get('AWS_SECRET_ACCESS_KEY')
-s3 = boto3.client('s3')
+#s3 = boto3.client('s3')
+dynamodb = boto3.resource('dynamodb')
+users = dynamodb.Table('People')
+events = dynamodb.Table('Events')
+pid_len = 9
 
 orig_time = '%H:%M'
 time_format = '%I:%M %p'
@@ -76,7 +80,7 @@ if not os.path.isfile(people_file):
 def check_pass(pw):
     return bcrypt.checkpw(str(pw).encode(), pass_hash)
 
-def upload(file=None):
+'''def upload(file=None):
     if file is None:
         to_upload = [events_file, people_file, log_file]
     else:
@@ -95,9 +99,9 @@ def upload(file=None):
                     s3.upload_fileobj(f, bucket, backup_file)
                 logger.info(f'Uploaded backup file {backup_file} to S3 bucket {bucket}')
             except:
-                logger.exception(f'Upload of backup file {backup_file} to S3 bucket {bucket} failed')
+                logger.exception(f'Upload of backup file {backup_file} to S3 bucket {bucket} failed')'''
 
-def download():
+'''def download():
     to_download = [events_file, people_file]
     for file in to_download:
         try:
@@ -112,9 +116,9 @@ def download():
             #logger.info(f'Created blank file {file}')
         except:
             logger.exception(
-                f'Error downloading file {file} from S3 bucket {bucket}')
+                f'Error downloading file {file} from S3 bucket {bucket}')'''
 
-def load_people():
+'''def load_people():
     try:
         with open(people_file, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -123,9 +127,10 @@ def load_people():
         return {}
     except json.decoder.JSONDecodeError:
         logger.info(f'{people_file} is blank')
-        return {}
+        return {}'''
 
-def format_people():
+
+'''def format_people():
     if len(people) > 0:
         formatted = {}
         for person in people:
@@ -136,24 +141,24 @@ def format_people():
             formatted[person] = [{'name': person, 'phone': people[person]['phone']}]
         return formatted
     else:
-        return None
+        return None'''
 
-people = load_people()
+# people = load_people()
 
-def format_event(event):
+'''def format_event(event):
     #{'formType': 'addEvent', 'eventName': 'test event 1 ', 'eventDate': '04-07-2021', 'eventStartTime': '17:00', 'eventEndTime': '19:00', 'eventLocation': 'trap house', 'eventInvites': ['priests', 'bishoprick'], 'notifyTimes': ['0', '1', '3', '7'], 'start': '05:00 PM', 'end': '07:00 PM'}
     new_event = {'id': ''.join(random.choices(string.ascii_letters, k=10)) + event['eventName'].replace(' ', '_'),
                  'title': event['eventName'], 'date': event['eventDate'], 'start': event['eventStartTime'],
                  'end': event['eventEndTime'], 'location': event['eventLocation'], 'who': event['eventInvites'],
                  'notifyTimes': event['notifyTimes']}
-    return new_event
+    return new_event'''
 
-def save_all_events():
+'''def save_all_events():
     with open(events_file, 'w', encoding='utf-8') as f:
         json.dump(events, f)
-    upload(file=events_file)
+    upload(file=events_file)'''
 
-def save_event(event):
+'''def save_event(event):
     global events
     event = format_event(event)
     if event['date'] not in events['dates']:
@@ -161,9 +166,25 @@ def save_event(event):
     day = event['date']
     del event['date']
     events['dates'][day]['events'].append(event)
-    save_all_events()
+    save_all_events()'''
 
-def load_events():
+def add_event(event):
+    eid = ''.join(random.choices(string.digits, k=pid_len))
+    events.put_item(
+        Item={
+            'EID': eid,
+            'name': event['name'],
+            'date': event['date'],
+            'start': event['start'],
+            'end': event['end'],
+            'location': event['location'],
+            'invited': event['invited'],
+            'notifyTimes': event['notifyTimes']
+        }
+    )
+    return eid
+
+'''def load_events():
     try:
         with open(events_file, 'r', encoding='utf-8') as f:
             tmp =  json.load(f)
@@ -174,11 +195,11 @@ def load_events():
         return {'dates': {}}
     except FileNotFoundError:
         logger.info(f'{events_file} not found, returning dict with blank date dict')
-        return {'dates': {}}
+        return {'dates': {}}'''
 
-events = load_events()
+# events = load_events()
 
-def format_all_events():
+'''def format_all_events():
     if len(events['dates']) > 0:
         tmp = copy.deepcopy(events)['dates']
         for t in tmp:
@@ -187,7 +208,51 @@ def format_all_events():
                 e['notifyTimes'] = ', '.join([str(x) for x in e['notifyTimes']]) + ' days before'
         return {k: v for k, v in sorted(tmp.items())}
     else:
-        return None
+        return None'''
+
+def get_users():
+    return users.scan()['Items']
+
+def get_groups():
+    groups = {}
+    all_users = get_users()
+    for user in all_users:
+        for group in user['groups']:
+            if group not in groups:
+                groups[group] = []
+            groups[group].append({'name': user['name'], 'phone': user['phone']})
+        groups[user['name']] = [{'name': user['name'], 'phone': user['phone']}]
+    return groups
+
+def get_list_users():
+    names = []
+    all_users = get_users()
+    for user in all_users:
+        if user['name'] not in names:
+            names.append(user['name'])
+    return names
+
+def get_list_groups():
+    names = []
+    groups = get_groups()
+    for g in groups:
+        if len(groups[g]) > 1:
+            names.append(g)
+    return names
+
+def get_list_all():
+    return get_list_groups() + get_list_users()
+
+def events_by_date():
+    all_events = events.scan()['Items']
+    dates = {}
+    for event in all_events:
+        if event['date'] not in dates:
+            dates[event['date']] = []
+        dates[event['date']].append({'id': event['EID'], 'start': event['start'], 'end': event['end'], 'location': event['location'],
+                                     'invited': ', '.join(event['invited']), 'notifyTimes': ', '.join(event['notifyTimes']) + ' days before',
+                                     'name': event['name']})
+    return dates
 
 def val_event(event):
     try:
@@ -195,32 +260,32 @@ def val_event(event):
             if event[e] == '':
                 return f'Please add an {e}'
         try:
-            event['eventStartTime'] =  datetime.strptime(event['eventStartTime'], orig_time).strftime(time_format)
+            event['start'] =  datetime.strptime(event['start'], orig_time).strftime(time_format)
         except ValueError:
             return 'Please enter a valid start time'
         try:
-            event['eventEndTime'] =  datetime.strptime(event['eventEndTime'], orig_time).strftime(time_format)
+            event['end'] =  datetime.strptime(event['end'], orig_time).strftime(time_format)
         except ValueError:
             return 'Please enter a valid end time'
-        if datetime.strptime(event['eventEndTime'], time_format).time() < datetime.strptime(event['eventStartTime'], time_format).time():
+        if datetime.strptime(event['end'], time_format).time() < datetime.strptime(event['start'], time_format).time():
             return 'The event end time must be after the event start time'
         try:
-            event['eventDate'] = datetime.strptime(event['eventDate'], orig_date).strftime(date_format)
+            event['date'] = datetime.strptime(event['date'], orig_date).strftime(date_format)
         except ValueError:
             return 'Please enter a valid start date'
-        if datetime.strptime(event['eventDate'], date_format).date() < datetime.today().date():
+        if datetime.strptime(event['date'], date_format).date() < datetime.today().date():
             return 'Please enter a date in the future'
-        if datetime.strptime(event['eventDate'], date_format).date() == datetime.today().date():
-            if datetime.strptime(event['eventStartTime'], time_format).time() < datetime.now().time():
+        if datetime.strptime(event['date'], date_format).date() == datetime.today().date():
+            if datetime.strptime(event['start'], time_format).time() < datetime.now().time():
                 return 'Please enter a time in the future'
-        if len(event['eventName']) > max_len:
+        if len(event['name']) > max_len:
             return 'Please enter a shorter event name'
-        if len(event['eventLocation']) > max_len:
+        if len(event['location']) > max_len:
             return 'Please enter a shorter event location'
-        if 'eventInvites' not in event or len(event['eventInvites']) < 1:
+        if 'invited' not in event or len(event['invited']) < 1:
             return 'Please select people/groups to invite'
-        all_groups = format_people()
-        for g in event['eventInvites']:
+        all_groups = get_groups()
+        for g in event['invited']:
             if g not in all_groups:
                 return 'Invalid group/person detected'
         if len(event['notifyTimes']) < 1:
@@ -233,50 +298,78 @@ def val_event(event):
         traceback.print_exc()
         return 'Invalid event, please try again'
 
-def save_all_people():
+'''def save_all_people():
     with open(people_file, 'w', encoding='utf-8') as f:
         json.dump(people, f)
-    upload(file=people_file)
+    upload(file=people_file)'''
 
 def val_group(group):
     try:
-        if len(group['groupMembers']) < 2:
+        if len(group['members']) < 2:
             return 'Please select more than 1 person/group to add to the group'
-        if group['groupName'] == '':
+        if group['name'] == '':
             return 'Please enter a group name'
-        all_people = format_people()
-        for g in group['groupMembers']:
+        all_people = get_list_all()
+        for g in group['members']:
             if g not in all_people:
-                #todo maybe error here when only select 1 group/groups?
                 return 'Invalid group member detected'
         return 'success'
     except:
         traceback.print_exc()
         return 'Invalid group, please try again'
-#todo if i add member and group that already has that member in it, dont do duplicates
-def add_group(group):
+
+'''def add_group(group):
     global people
     formatted = format_people()
     for member in group['groupMembers']:
         for person in formatted[member]:
-            people[person['name']]['groups'].append(group['groupName'])
-    save_all_people()
+            if group['groupName'] not in people[person['name']]['groups']:
+                people[person['name']]['groups'].append(group['groupName'])
+    save_all_people()'''
+
+def add_group(group):
+    mems = []
+    users_and_groups = get_groups()
+    for x in users_and_groups:
+        for u in users_and_groups[x]:
+            if u['name'] not in mems:
+                mems.append(u['name'])
+    updated = [{ k: v + [group['name']] if user['name'] in mems and k == 'groups' and group['name'] not in v else v for k,v in user.items()} for user in users.scan()['Items']]
+    with users.batch_writer() as batch:
+        for user in updated:
+            batch.put_item(Item=user)
 
 def val_person(person):
     try:
-        if person['name'] == '':
+        if person['personName'] == '':
             return 'Please enter a name'
-        if not person['number'].isnumeric() or len(person['number']) != 10:
+        if not person['phone'].isnumeric() or len(person['phone']) != 10:
             return 'Please enter a valid phone number'
+        groups = get_list_groups()
+        for g in person['groups']:
+            if g not in groups:
+                return 'Invalid group detected'
         return 'success'
     except:
         traceback.print_exc()
         return 'Invalid person details, please try again'
 #todo add person to group functionality after group creation
-def add_person(person):
+'''def add_person(person):
     global people
     people[person['name']] = {'phone': person['number'], 'groups': []}
-    save_all_people()
+    save_all_people()'''
+
+def add_person(person):
+    pid = ''.join(random.choices(string.digits, k=pid_len))
+    users.put_item(
+        Item={
+            'PID': pid,
+            'name': person['personName'],
+            'phone': person['phone'],
+            'groups': person['groups']
+        }
+    )
+    return pid
 
 class User(UserMixin):
     def __init__(self, id=None):
@@ -286,9 +379,9 @@ class User(UserMixin):
 def load_user(user_id):
     return User(user_id)
 
-@app.before_first_request
+'''@app.before_first_request
 def setup():
-    download()
+    download()'''
 
 @app.route('/')
 def base():
@@ -318,14 +411,14 @@ def home():
     if request.method == 'POST':
         form = request.form.to_dict(flat=False)
         for f in form:
-            if len(form[f]) == 1 and f not in ['eventInvites', 'notifyTimes']:
+            if len(form[f]) == 1 and f not in ['eventInvites', 'notifyTimes', 'groups']:
                 form[f] = form[f][0]
         if 'formType' not in form:
             return redirect('/home')
         if form['formType'] == 'addEvent':
             result = val_event(form)
             if result == 'success':
-                save_event(form)
+                add_event(form)
                 flash('Event added successfully')
             else:
                 flash(result)
@@ -344,7 +437,8 @@ def home():
             else:
                 flash(result)
         return redirect('/home')
-    return render_template('home.html', title=title, dates=format_all_events(), groups=format_people(), notifyTimes=notify_opts)
+    return render_template('home.html', title=title, dates=events_by_date(), groups=get_groups(), notifyTimes=notify_opts,
+                           groupsList=get_list_groups())
 
 @app.route('/settings')
 @login_required
