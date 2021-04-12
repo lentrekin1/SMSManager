@@ -354,22 +354,46 @@ def val_person(person):
         traceback.print_exc()
         return 'Invalid person details, please try again'
 #todo add person to group functionality after group creation
+#todo allow editing events and people
 '''def add_person(person):
     global people
     people[person['name']] = {'phone': person['number'], 'groups': []}
     save_all_people()'''
 
 def add_person(person):
-    pid = ''.join(random.choices(string.digits, k=pid_len))
+    if 'PID' in person:
+        pid = person['PID']
+    else:
+        pid = ''.join(random.choices(string.digits, k=pid_len))
     users.put_item(
         Item={
             'PID': pid,
-            'name': person['personName'],
+            'name': person['personName'] if 'personName' in person else person['name'],
             'phone': person['phone'],
             'groups': person['groups']
         }
     )
     return pid
+
+def edit_group(form):
+    #todo this way of doing it is kinda wack - maybe break into val_ and do() funcs
+    try:
+        if 'remUser' not in form and 'addUser' not in form:
+            return 'Please select user(s)'
+        if form['action'] == 'remove' and len(form['remUser']) >= len(get_groups()[form['editGroupName']]) - 1:
+            return 'Cannot remove that many people, groups must have at least 2 members'
+        all_people = get_users()
+        for u in all_people:
+            if form['action'] == 'remove' and u['name'] in form['remUser'] and form['editGroupName'] in u['groups']:
+                u['groups'].remove(form['editGroupName'])
+                add_person(u)
+            if form['action'] == 'add' and u['name'] in form['addUser']:
+                u['groups'].append(form['editGroupName'])
+                add_person(u)
+        return 'success'
+    except:
+        traceback.print_exc()
+        return 'Invalid group edit, please try again'
 
 class User(UserMixin):
     def __init__(self, id=None):
@@ -411,7 +435,7 @@ def home():
     if request.method == 'POST':
         form = request.form.to_dict(flat=False)
         for f in form:
-            if len(form[f]) == 1 and f not in ['eventInvites', 'notifyTimes', 'groups']:
+            if len(form[f]) == 1 and f not in ['eventInvites', 'notifyTimes', 'groups', 'remUser', 'addUser']:
                 form[f] = form[f][0]
         if 'formType' not in form:
             return redirect('/home')
@@ -436,9 +460,17 @@ def home():
                 flash('Person added successfully')
             else:
                 flash(result)
+        if form['formType'] == 'editGroup':
+            result = edit_group(form)
+            if result == 'success':
+                flash('Group edited successfully')
+            else:
+                flash(result)
+                #todo working on this part
+            print(request.form)
         return redirect('/home')
     return render_template('home.html', title=title, dates=events_by_date(), groups=get_groups(), notifyTimes=notify_opts,
-                           groupsList=get_list_groups())
+                           groupsList=get_list_groups(), peopleList=get_list_users())
 
 @app.route('/settings')
 @login_required

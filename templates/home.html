@@ -21,7 +21,6 @@
           $('.selectpicker').selectpicker();
         });
 
-
         $(document).ready(function(){
           $("#groupSearch").on("keypress click input", function () {
               var val = $(this).val();
@@ -43,10 +42,49 @@
         function submitPerson() {
             document.getElementById('personForm').submit();
         }
+
+        var all = {{ peopleList|safe}}
+        $(document).on('show.bs.modal', '#editGroupModal', function (event) {
+          $("#remUser").empty();
+          $('#addUser').empty();
+          var button = $(event.relatedTarget);
+          $('#editGroupName').val(button.data('group'));
+          var members = button.data('members').replace(/'/g,"\"").split('&');
+          var modal = $(this);
+          for (i=0;i<members.length;i++) {
+            var opt = document.createElement('option');
+            opt.text = JSON.parse(members[i]).name;
+            opt.value = JSON.parse(members[i]).name;
+            opt.setAttribute('data-tokens', JSON.parse(members[i]).name);
+            modal.find('#remUser').append(opt, undefined);
+          }
+          modal.find('#remUser').selectpicker('refresh');
+          members = [];
+          for (x=0;x<document.getElementById('remUser').options.length;x++) {
+                    members.push(document.getElementById('remUser').options[x].innerHTML)
+                }
+            for (i=0;i<all.length;i++) {
+                if (members.indexOf(all[i]) < 0) {
+                    var opt = document.createElement('option');
+                    opt.text = all[i];
+                    opt.value = all[i];
+                    opt.setAttribute('data-tokens', all[i]);
+                    modal.find('#addUser').append(opt, undefined);
+                }
+              }
+          modal.find('#addUser').selectpicker('refresh');
+        })
     </script>
+    <style>
+        @media (min-width: 1000px) and (min-height: 700px) {
+            .body {
+                overflow:hidden;
+            }
+        }
+    </style>
 </head>
 
-<body>
+<body class="body">
 <div class="container" style="min-height:100% width:80%">
 	{% with messages = get_flashed_messages() %}
 	  {% if messages %}
@@ -64,7 +102,7 @@
     <h1>{{ title }} <button class="btn btn-warning" onclick="location.href='/settings'">Settings</button></h1>
 </div>
 <div class="row justify-content-center">
-    <div class="col-md-3" id="calendar">
+    <div class="col-md" id="calendar">
         <div class="card" id="upcomingEvents">
             <h5 class="card-header">
                 Calendar
@@ -131,7 +169,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3" id="people">
+    <div class="col-md" id="people">
         <div class="card" id="userGroups">
             <h5 class="card-header">
                 People and groups
@@ -159,12 +197,48 @@
                                     <strong>{{member.name}}: </strong><strong>{{member.phone}}</strong>
                                     <br>
                                     {% endfor %}
+                                    {% if groups[group]|length > 1 %}
+                                    <button type="button" class="btn btn-sm btn-primary m-1" data-group="{{group}}" data-members="{{groups[group]|join('&')}}" data-toggle="modal" data-target="#editGroupModal">
+                                      Edit Group
+                                    </button>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                     </div>
                     <br>
                     {% endfor %}
+                    <div class="modal fade" id="editGroupModal" tabindex="-1" role="dialog" aria-labelledby="editGroupModalLabel" aria-hidden="true">
+                      <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="editGroupModalLabel">Edit Group</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                              <span aria-hidden="true">&times;</span>
+                            </button>
+                          </div>
+                          <div class="modal-body">
+                            <form method="post" id="editGroup">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" value="editGroup" name="formType">
+                                <input type="hidden" name="editGroupName" id="editGroupName">
+                                <label for="remUser">Select user(s) to remove: </label>
+                                <select name="remUser" id="remUser" class="selectpicker form-control" data-live-search-normalize="true" data-live-search="true" multiple></select>
+                                <button class="btn btn-sm btn-danger" name="action" value="remove">Remove User(s)</button>
+                                <hr>
+                                <label for="addUser">Select user(s) to add: </label>
+                                <select name="addUser" id="addUser" class="selectpicker form-control" data-live-search-normalize="true" data-live-search="true" multiple></select>
+                                <button class="btn btn-sm btn-primary" name="action" value="add">Add User(s)</button>
+                                <br>
+                                <small>Only users not already in the group</small>
+                            </form>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     {% else %}
                     <strong>No people found</strong>
                     {% endif %}
@@ -225,7 +299,7 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" value="createGroup" name="formType">
                             <label for="name">Group Name</label>
-                            <input type="text" class="form-control" name="name" id="name">
+                            <input type="text" class="form-control" name="name">
                             <br>
                             <label for="members">Group Members</label>
                             {% if groups is defined and groups is not none and groups|length > 0 %}
@@ -249,7 +323,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3" id="eventMaker">
+    <div class="col-md" id="eventMaker">
         <div class="card" id="newEvent">
             <h5 class="card-header">
                 Add a new event
@@ -261,9 +335,6 @@
                     <label for="name">Event name</label>
                     <input class="form-control form-control-sm" id="name" name="name" placeholder="Ex. Guest speaker"
                            type="text">
-                    <!--<label for="eventDesc">Event Description</label>
-                    <input class="form-control form-control-sm" id="eventDesc" name="eventDesc" placeholder="Ex. Brother Johnson will speak about taxes"
-                           type="text">-->
                     <label for="date">Date</label>
                     <input class="form-control form-control-sm" id="date" name="date" type="date">
                     <label for="start">Start Time</label>
@@ -289,6 +360,7 @@
                     {% endif %}
                     <small class="text-muted form-text">Select groups or people that are invited</small>
                     <label for="notifyTimes">How many days out to notify</label>
+                    <br>
                     <select class="selectpicker" id="notifyTimes" multiple name="notifyTimes">
                         {% for time in notifyTimes %}
                         <option data-tokens={{time}}>{{ time }}</option>
